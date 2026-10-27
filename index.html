@@ -78,6 +78,7 @@
   <div id="status">未加载。请先「设置账户」。</div>
   <button class="ghost" onclick="openSet()">⚙ 设置账户</button>
   <button onclick="loadAll()">⟳ 刷新数据</button>
+  <button id="btnAuto" onclick="toggleAuto()">▶ 开始自动</button>
 </div>
 
 <div id="opLog"></div>
@@ -269,6 +270,7 @@ async function loadAll(){
     }catch(e){ return {acc, held:{}, err:e.message}; }
   }));
   renderCards(accs, results);
+  return {accs, results};
 }
 function renderCards(accs, results){
   const el=document.getElementById("cards");
@@ -316,40 +318,95 @@ async function openOrder(accId, sym){
   document.getElementById("ordMask").classList.add("open");
 }
 function closeOrder(){ document.getElementById("ordMask").classList.remove("open"); }
+
+/* 核心开仓逻辑（不弹窗，返回成功/抛异常） */
+async function doOpenOrder(acc, sym){
+  const mq=MINQ_MAP[sym];
+  const price=PRICE_MAP[sym];
+  if(!mq||!isFinite(price)) throw new Error("无行情数据");
+  const usd=Math.max(price*parseFloat(mq), (NOTIONAL_MAP[sym]||5)+1);
+  const dualJ=await signedFetch(acc,"/fapi/v1/positionSide/dual");
+  const dual=!!dualJ.dualSidePosition;
+  const step=parseFloat(STEP_MAP[sym]||"1");
+  const minQ=parseFloat(MINQ_MAP[sym]||"1");
+  const minN=NOTIONAL_MAP[sym]||5;
+  let qty=Math.floor((usd/price)/step)*step;
+  qty=Math.round(qty*1e8)/1e8;
+  if(qty*price<minN){
+    qty=Math.ceil((minN/price)/step)*step;
+    qty=Math.round(qty*1e8)/1e8;
+  }
+  if(qty<minQ) qty=minQ;
+  const params={symbol:sym, side:"BUY", type:"MARKET", quantity:String(qty), newOrderRespType:"ACK"};
+  if(dual) params.positionSide="LONG";
+  const j=await signedFetch(acc,"/fapi/v1/order","POST",params);
+  if(!j.orderId) throw new Error(j.msg||JSON.stringify(j).slice(0,120));
+  return {orderId:j.orderId, qty, usd};
+}
+
 async function placeOrder(){
   const t=PENDING;
   if(!t) return;
   closeOrder();
   PENDING=null;
   try{
-    const dualJ=await signedFetch(t.acc,"/fapi/v1/positionSide/dual");
-    const dual=!!dualJ.dualSidePosition;
-    // 按数量下单（与 us-position-web 开仓逻辑一致）：部分交易对不接受 quoteOrderQty 金额市价单
-    const step=parseFloat(STEP_MAP[t.sym]||"1");
-    const minQ=parseFloat(MINQ_MAP[t.sym]||"1");
-    const minN=NOTIONAL_MAP[t.sym]||5;
-    let qty=Math.floor((t.usd/t.price)/step)*step;         // 向下取整到最小步长
-    qty=Math.round(qty*1e8)/1e8;                           // 固定 8 位精度舍入
-    if(qty*t.price<minN){                                  // 金额不足最小名义值时向上补齐
-      qty=Math.ceil((minN/t.price)/step)*step;
-      qty=Math.round(qty*1e8)/1e8;
-    }
-    if(qty<minQ) qty=minQ;
-    const qtyStr=String(qty);
-    const params={symbol:t.sym, side:"BUY", type:"MARKET", quantity:qtyStr, newOrderRespType:"ACK"};
-    if(dual) params.positionSide="LONG";
-    const j=await signedFetch(t.acc,"/fapi/v1/order","POST",params);
-    if(j.orderId){
-      addLog("ok", t.acc.name+" "+t.sym+" 开仓多单 "+qtyStr+" 个 ≈ "+t.usd.toLocaleString("en-US",{maximumFractionDigits:4})+" USDT（订单 "+j.orderId+"）");
-      setStatus(t.acc.name+" "+t.sym+" 开仓成功（订单 "+j.orderId+"）");
-      loadAll();
-    }else{
-      addLog("err", t.acc.name+" "+t.sym+" 开仓失败："+(j.msg||JSON.stringify(j).slice(0,120)));
-      alert("开仓失败："+(j.msg||JSON.stringify(j).slice(0,120)));
-    }
+    const r=await doOpenOrder(t.acc, t.sym);
+    addLog("ok", t.acc.name+" "+t.sym+" 开仓多单 "+r.qty+" 个 ≈ "+r.usd.toLocaleString("en-US",{maximumFractionDigits:4})+" USDT（订单 "+r.orderId+"）");
+    setStatus(t.acc.name+" "+t.sym+" 开仓成功（订单 "+r.orderId+"）");
+    loadAll();
   }catch(e){
     addLog("err", t.acc.name+" "+t.sym+" 开仓失败："+e.message);
     alert("开仓失败："+e.message);
+  }
+}
+
+/* ============ 自动开仓循环 ============ */
+let autoRunning=false, autoTimer=null;
+async function autoLoop(){
+  if(!autoRunning) return;
+  try{
+    const {accs, results}=await loadAll();
+    if(!autoRunning) return;
+    // 收集待开仓列表（顺序：按账户、按PAIRS顺序）
+    const todo=[];
+    results.forEach((r,i)=>{
+      if(r.err) return;
+      PAIRS.forEach(s=>{ if(!r.held[s]) todo.push({acc:accs[i], sym:s}); });
+    });
+    if(todo.length){
+      setStatus("自动开仓中：共 "+todo.length+" 个待开仓，逐个执行…");
+      for(const item of todo){
+        if(!autoRunning) return;
+        try{
+          const r=await doOpenOrder(item.acc, item.sym);
+          addLog("ok", item.acc.name+" "+item.sym+" 自动开仓 "+r.qty+" ≈ "+r.usd.toFixed(2)+" USDT（订单 "+r.orderId+"）");
+        }catch(e){
+          addLog("err", item.acc.name+" "+item.sym+" 自动开仓失败："+e.message);
+        }
+        await new Promise(r=>setTimeout(r,1500));
+      }
+    }
+  }catch(e){
+    addLog("err", "自动循环异常："+e.message);
+  }
+  if(autoRunning){
+    setStatus("本轮完成，15s 后下一轮…");
+    autoTimer=setTimeout(autoLoop, 15000);
+  }
+}
+function toggleAuto(){
+  const btn=document.getElementById("btnAuto");
+  if(autoRunning){
+    autoRunning=false;
+    if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+    btn.textContent="▶ 开始自动";
+    btn.style.background="";
+    setStatus("已停止自动开仓");
+  }else{
+    autoRunning=true;
+    btn.textContent="■ 停止自动";
+    btn.style.background="linear-gradient(135deg,#a02a2a,#ef4444)";
+    autoLoop();
   }
 }
 
