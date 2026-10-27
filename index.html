@@ -76,6 +76,8 @@
 
 <div class="hgroup">
   <div id="status">未加载。请先「设置账户」。</div>
+  <span id="netStatus" style="font-size:11px;padding:5px 10px;border-radius:16px;font-weight:600;border:1px solid var(--line);background:rgba(10,14,26,.7);white-space:nowrap">检测中…</span>
+  <span id="countdown" style="font-family:Consolas,monospace;font-size:16px;font-weight:700;color:#6aa6ff;background:rgba(20,35,74,.8);border:1px solid #3a7bd5;border-radius:8px;padding:3px 10px;min-width:60px;text-align:center;display:none">--<small style="font-size:11px;color:var(--sub);margin-left:2px">s</small></span>
   <button class="ghost" onclick="openSet()">⚙ 设置账户</button>
   <button onclick="loadAll()">⟳ 刷新数据</button>
   <button id="btnAuto" onclick="toggleAuto()">▶ 开始自动</button>
@@ -361,13 +363,26 @@ async function placeOrder(){
 }
 
 /* ============ 自动开仓循环 ============ */
-let autoRunning=false, autoTimer=null;
+let autoRunning=false, autoTimer=null, cdTimer=null, nextRoundAt=0;
+function startCountdown(seconds){
+  stopCountdown();
+  nextRoundAt=Date.now()+seconds*1000;
+  const el=document.getElementById("countdown");
+  el.style.display="inline-block";
+  cdTimer=setInterval(()=>{
+    const left=Math.max(0, Math.round((nextRoundAt-Date.now())/1000));
+    el.innerHTML=left+'<small style="font-size:11px;color:var(--sub);margin-left:2px">s</small>';
+  },200);
+}
+function stopCountdown(){
+  if(cdTimer){ clearInterval(cdTimer); cdTimer=null; }
+  document.getElementById("countdown").style.display="none";
+}
 async function autoLoop(){
   if(!autoRunning) return;
   try{
     const {accs, results}=await loadAll();
     if(!autoRunning) return;
-    // 收集待开仓列表（顺序：按账户、按PAIRS顺序）
     const todo=[];
     results.forEach((r,i)=>{
       if(r.err) return;
@@ -391,6 +406,7 @@ async function autoLoop(){
   }
   if(autoRunning){
     setStatus("本轮完成，15s 后下一轮…");
+    startCountdown(15);
     autoTimer=setTimeout(autoLoop, 15000);
   }
 }
@@ -399,6 +415,7 @@ function toggleAuto(){
   if(autoRunning){
     autoRunning=false;
     if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+    stopCountdown();
     btn.textContent="▶ 开始自动";
     btn.style.background="";
     setStatus("已停止自动开仓");
@@ -409,6 +426,32 @@ function toggleAuto(){
     autoLoop();
   }
 }
+
+/* ============ 网络检测 ============ */
+async function pingNet(){
+  const el=document.getElementById("netStatus");
+  if(!navigator.onLine){
+    el.textContent="● 网络断开"; el.style.color="#ef4444"; el.style.borderColor="#ef4444";
+    return;
+  }
+  try{
+    const ctl=new AbortController();
+    const t=setTimeout(()=>ctl.abort(),5000);
+    const r=await fetch(API+"/fapi/v1/ping",{signal:ctl.signal});
+    clearTimeout(t);
+    if(r.ok){ el.textContent="● 网络正常"; el.style.color="#22c55e"; el.style.borderColor="#22c55e"; }
+    else throw new Error("http "+r.status);
+  }catch(e){
+    el.textContent="● 网络异常"; el.style.color="#ef4444"; el.style.borderColor="#ef4444";
+  }
+}
+pingNet();
+setInterval(pingNet, 5000);
+window.addEventListener("online", pingNet);
+window.addEventListener("offline", ()=>{
+  const el=document.getElementById("netStatus");
+  el.textContent="● 网络断开"; el.style.color="#ef4444"; el.style.borderColor="#ef4444";
+});
 
 /* ============ 设置账户 ============ */
 function rowHtml(nm,key,secret){
