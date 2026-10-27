@@ -238,7 +238,7 @@ function addLog(type, text){
   renderLog();
 }
 function renderLog(){
-  const logs=getLogs().slice(0,10);
+  const logs=getLogs().slice(0,1);
   const el=document.getElementById("opLog");
   if(!logs.length){ el.innerHTML='<div class="oplog-empty">暂无操作记录</div>'; return; }
   el.innerHTML=logs.map(l=>{
