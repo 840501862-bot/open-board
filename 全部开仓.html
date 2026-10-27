@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>全部开仓</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0f16'/%3E%3Ctext x='16' y='23' font-size='16' text-anchor='middle' fill='%23f0b90b' font-family='Arial' font-weight='bold'%3E+%3C/text%3E%3C/svg%3E">
+<style>
+  :root{--bg1:#050814;--bg2:#0a1228;--panel:rgba(16,24,48,.72);--line:#1d2f5e;--txt:#e6ecff;--sub:#7e92c0;--blue:#3a7bd5;--blue2:#6aa6ff;--green:#22c55e;--red:#ef4444;--amber:#f5b759}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;color:var(--txt);min-height:100vh;padding:16px 18px 32px;background:radial-gradient(900px 500px at 50% -10%,rgba(255,180,60,.18),transparent 60%),radial-gradient(1200px 600px at 10% -10%,rgba(58,123,213,.22),transparent 60%),radial-gradient(900px 500px at 110% 110%,rgba(192,57,43,.18),transparent 55%),linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 70%,#0c1a3a 100%);background-attachment:fixed}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.35;background-image:linear-gradient(rgba(58,123,213,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(58,123,213,.08) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 0%,#000 40%,transparent 80%)}
+  header{position:relative;z-index:1;text-align:center;margin:18px 0 16px}
+  .brand{display:inline-block;position:relative;padding:6px 28px}
+  .brand::before,.brand::after{content:"";position:absolute;top:50%;width:46px;height:2px;background:linear-gradient(90deg,transparent,#d4af37,transparent)}
+  .brand::before{left:-58px}
+  .brand::after{right:-58px;transform:scaleX(-1)}
+  h1{font-size:30px;font-weight:900;letter-spacing:3px;background:linear-gradient(90deg,#ffd76a 0%,#ff6b35 30%,#c0392b 55%,#ffd76a 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 4s linear infinite;text-shadow:0 0 30px rgba(255,180,60,.25)}
+  @keyframes shine{to{background-position:200% 0}}
+  .dragon{display:block;font-size:14px;letter-spacing:10px;margin-top:6px;color:#d4af37;opacity:.85}
+  .sub{font-size:12px;color:var(--sub);margin-top:6px;letter-spacing:2px}
+  .hgroup{position:relative;z-index:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
+  button{font-family:inherit;font-size:12px;cursor:pointer;border:none;border-radius:8px;padding:7px 12px;color:#fff;background:linear-gradient(135deg,#1b4fa0,#3a7bd5);transition:filter .15s,transform .05s;white-space:nowrap}
+  button:hover{filter:brightness(1.15)}
+  button:active{transform:translateY(1px)}
+  button.ghost{background:rgba(20,35,74,.6);border:1px solid var(--line);color:var(--blue2)}
+  button.ghost:hover{background:#14234a}
+  #status{font-size:12px;color:var(--sub);background:rgba(10,14,26,.7);border:1px solid var(--line);border-radius:8px;padding:7px 12px;line-height:1.5;max-width:none}
+  #opLog{margin:0 auto 8px;font-size:12px;line-height:1.8;text-align:center;color:var(--sub);position:relative;z-index:1;max-width:900px}
+  .oplog-item.ok{color:var(--green)}
+  .oplog-item.err{color:var(--red)}
+  .tbl-wrap{position:relative;z-index:1;overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:0 10px 40px rgba(0,0,0,.5);backdrop-filter:blur(6px)}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:720px}
+  thead th{position:sticky;top:0;z-index:2;background:#0e1730;color:var(--blue2);text-align:left;font-weight:600;padding:13px 16px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tbody td{padding:12px 16px;border-bottom:1px solid rgba(29,47,94,.4);white-space:nowrap}
+  tbody tr:hover{background:rgba(58,123,213,.1)}
+  .acct-name{color:var(--blue2);font-size:12px;background:rgba(58,123,213,.12);padding:3px 10px;border-radius:6px;display:inline-block}
+  .sym{font-weight:700;letter-spacing:.3px}
+  .side-long{color:var(--green);font-weight:700}
+  .side-short{color:var(--red);font-weight:700}
+  .num{font-family:Consolas,"Courier New",monospace}
+  .op-btn{font-size:12px;padding:6px 14px;border-radius:7px;background:linear-gradient(135deg,#1a6b3a,#22c55e);cursor:pointer;color:#fff;border:none}
+  .op-btn:hover{filter:brightness(1.15)}
+  .op-btn.sell{background:linear-gradient(135deg,#a13030,#ef4444)}
+  .empty{text-align:center;color:var(--sub);padding:60px 0;font-size:14px}
+  .empty .big{font-size:16px;color:var(--blue2);margin-bottom:6px}
+  .modal-mask{position:fixed;inset:0;z-index:10;background:rgba(5,8,20,.75);display:none;align-items:center;justify-content:center}
+  .modal-mask.open{display:flex}
+  .modal{width:min(620px,94vw);max-height:86vh;overflow:auto;background:linear-gradient(160deg,#101a30,#0c1428);border:1px solid #2a3c6e;border-radius:16px;padding:22px 24px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .modal h3{font-size:16px;margin-bottom:14px;color:var(--txt)}
+  .modal input{width:100%;background:#0a1020;border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:8px 10px;font-size:12px;outline:none}
+  .modal input:focus{border-color:var(--blue)}
+  .modal .row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  .tip{font-size:12px;color:var(--sub);margin-bottom:14px;line-height:1.6}
+  .arow{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap}
+  .arow input{flex:1;min-width:140px}
+  .arow .nm{flex:0 0 110px;min-width:110px}
+  .arow .del{color:var(--red);background:none;border:none;cursor:pointer;font-size:16px;padding:6px}
+  .add-row{margin:2px 0 12px}
+  .modal-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .hint{font-size:12px;color:var(--sub)}
+  .ord-body{font-size:13px;line-height:1.9;color:var(--txt)}
+  .ord-body b{color:var(--blue2)}
+  .ord-warn{margin-top:10px;padding:8px 10px;background:#2a1b1b;border:1px solid #5c2a2a;border-radius:6px;color:#e08a8a;font-size:12px}
+  @media (max-width:640px){ body{padding:12px 10px 24px} h1{font-size:22px;letter-spacing:1px} .dragon{letter-spacing:6px} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>币安合约 · 大夏龙国量化基金</h1>
+    <span class="dragon">✦ 重 生 之 我 在 币 安 做 量 化 ✦</span>
+  </div>
+  <div class="sub">无仓位交易对监控 · 一键最小开仓 · 密钥仅保存在本浏览器</div>
+</header>
+
+<div class="hgroup">
+  <div id="status">未加载。请先「设置账户」。</div>
+  <button class="ghost" onclick="openSet()">⚙ 设置账户</button>
+  <button onclick="loadAll()">⟳ 刷新数据</button>
+</div>
+
+<div id="opLog"></div>
+
+<div class="tbl-wrap">
+  <table>
+    <thead><tr>
+      <th>账户</th><th>交易对名称</th><th>方向</th><th>最小开仓(USDT)</th><th>投资回报率</th><th>操作</th>
+    </tr></thead>
+    <tbody id="cards"></tbody>
+  </table>
+</div>
+
+<div class="modal-mask" id="ordMask">
+  <div class="modal">
+    <h3>确认开仓</h3>
+    <div id="ordBody" class="ord-body"></div>
+    <div class="row">
+      <button class="btn" onclick="closeOrder()">取消</button>
+      <button class="btn gold" onclick="placeOrder()">确认开仓</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="mask">
+  <div class="modal">
+    <h3>设置 API 密钥</h3>
+    <div class="tip">每行一个账户：账户名 + API Key + Secret。密钥只保存在本浏览器（localStorage），不会上传。</div>
+    <div id="accRows"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="addRow()">+ 添加账户</button>
+      <button class="btn gold" onclick="saveSet()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ 交易对（来自 U本位合约交易对.txt） ============ */
+const PAIRS=["0GUSDT", "1000000MOGUSDT", "1000BONKUSDT", "1000CATUSDT", "1000CHEEMSUSDT", "1000FLOKIUSDT", "1000LUNCUSDT", "1000PEPEUSDT", "1000RATSUSDT", "1000SATSUSDT", "1000SHIBUSDT", "1000XECUSDT", "1INCHUSDT", "1MBABYDOGEUSDT", "2ZUSDT", "4USDT", "AAOIUSDT", "AAPLUSDT", "AAVEUSDT", "ABBVUSDT", "ACEUSDT", "ACHUSDT", "ACNUSDT", "ACTUSDT", "ACUUSDT", "ADAUSDT", "ADBEUSDT", "AEROUSDT", "AEVOUSDT", "AGLDUSDT", "AGPUUSDT", "AGTUSDT", "AIAUSDT", "AIGENSYNUSDT", "AINUSDT", "AIOTUSDT", "AIOUSDT", "AIXBTUSDT", "AKAMUSDT", "AKEUSDT", "AKTUSDT", "ALABUSDT", "ALCHUSDT", "ALGOUSDT", "ALICEUSDT", "ALLOUSDT", "ALLUSDT", "ALPINEUSDT", "ALTUSDT", "AMATUSDT", "AMCUSDT", "AMDUSDT", "AMZNUSDT", "ANETUSDT", "ANIMEUSDT", "ANKRUSDT", "ANTHROPICUSDT", "APEUSDT", "API3USDT", "APLDUSDT", "APPUSDT", "APRUSDT", "APTUSDT", "ARBUSDT", "ARCUSDT", "ARIAUSDT", "ARKMUSDT", "ARKUSDT", "ARMUSDT", "ARPAUSDT", "ARUSDT", "ARXUSDT", "ASMLUSDT", "ASRUSDT", "ASTERUSDT", "ASTRUSDT", "ASTSUSDT", "ATHUSDT", "ATOMUSDT", "ATUSDT", "AUCTIONUSDT", "AUSDT", "AVAAIUSDT", "AVAUSDT", "AVAXUSDT", "AVGOUSDT", "AVNTUSDT", "AWEUSDT", "AXLUSDT", "AXSUSDT", "AXTIUSDT", "AZTECUSDT", "B2USDT", "BABAUSDT", "BABYUSDT", "BACUSDT", "BANANAS31USDT", "BANANAUSDT", "BANDUSDT", "BANKUSDT", "BANUSDT", "BARDUSDT", "BASEDUSDT", "BASUSDT", "BATUSDT", "BBUSDT", "BBXUSDT", "BCHUSDT", "BEAMXUSDT", "BEATUSDT", "BELUSDT", "BERAUSDT", "BEUSDT", "BICOUSDT", "BIGTIMEUSDT", "BILLUSDT", "BIOUSDT", "BIRBUSDT", "BITOUSDT", "BLESSUSDT", "BLUAIUSDT", "BLURUSDT", "BMNRUSDT", "BMTUSDT", "BNBUSDT", "BNCUSDT", "BNTUSDT", "BOMEUSDT", "BOTUSDT", "BRETTUSDT", "BREVUSDT", "BRKBUSDT", "BROCCOLI714USDT", "BROCCOLIF3BUSDT", "BRUSDT", "BSBUSDT", "BSPUSDT", "BSVUSDT", "BTCDOMUSDT", "BTRUSDT", "BTWUSDT", "BULLAUSDT", "BUSDT", "BWETUSDT", "BXUSDT", "BYDUSDT", "C98USDT", "CAKEUSDT", "CAPUSDT", "CARVUSDT", "CATIUSDT", "CATUSDT", "CBRSUSDT", "CCUSDT", "CEGUSDT", "CELOUSDT", "CELRUSDT", "CETUSUSDT", "CFGUSDT", "CFXUSDT", "CGPTUSDT", "CHILLGUYUSDT", "CHIPUSDT", "CHRUSDT", "CHZUSDT", "CIENUSDT", "CKBUSDT", "CLANKERUSDT", "CLOUSDT", "COAIUSDT", "COHRUSDT", "COINUSDT", "COLLECTUSDT", "COMPUSDT", "COOKIEUSDT", "COPPERUSDT", "COSTUSDT", "COTIUSDT", "COWUSDT", "CRCLUSDT", "CRDOUSDT", "CRMLUSDT", "CRMUSDT", "CROSSUSDT", "CRVUSDT", "CRWDUSDT", "CRWVUSDT", "CSCOUSDT", "CSOPSAMSUNG2LUSDT", "CSOPSKHYNIX2LUSDT", "CTKUSDT", "CTRUSDT", "CTSIUSDT", "CTUSDT", "CUSDT", "CVCUSDT", "CVNAUSDT", "CVXUSDT", "CXMTUSDT", "CYBERUSDT", "CYPHUSDT", "CYSUSDT", "DASHUSDT", "DATAIPUSDT", "DDOGUSDT", "DEEPUSDT", "DELLUSDT", "DEXEUSDT", "DIAUSDT", "DISUSDT", "DJTUSDT", "DKNGUSDT", "DODOXUSDT", "DOGEUSDT", "DOGSUSDT", "DOLOUSDT", "DOODUSDT", "DOSUSDT", "DOTUSDT", "DRAMUSDT", "DRIFTUSDT", "DUSKUSDT", "DYDXUSDT", "DYMUSDT", "EBAYUSDT", "EDENUSDT", "EDGEUSDT", "EDUUSDT", "EGLDUSDT", "EIDOUSDT", "EIGENUSDT", "ELSAUSDT", "ENAUSDT", "ENJUSDT", "ENSOUSDT", "ENSUSDT", "EQTUSDT", "ERAUSDT", "ESPORTSUSDT", "ESPUSDT", "ETCUSDT", "ETHFIUSDT", "ETHWUSDT", "EULUSDT", "EVAAUSDT", "EWJUSDT", "EWTUSDT", "EWYUSDT", "EWZUSDT", "FARTCOINUSDT", "FETUSDT", "FFUSDT", "FHEUSDT", "FIDAUSDT", "FIGHTUSDT", "FILUSDT", "FLEXUSDT", "FLNCUSDT", "FLOCKUSDT", "FLOWUSDT", "FLUIDUSDT", "FLUXUSDT", "FOGOUSDT", "FOLKSUSDT", "FORMUSDT", "FRAXUSDT", "FUSDT", "FWDIUSDT", "GALAUSDT", "GASUSDT", "GDXUSDT", "GENIUSUSDT", "GEVUSDT", "GIGADEVUSDT", "GIGGLEUSDT", "GLMUSDT", "GLWUSDT", "GMEUSDT", "GMTUSDT", "GMXUSDT", "GOATUSDT", "GOOGLUSDT", "GPROUSDT", "GPSUSDT", "GRAMUSDT", "GRASSUSDT", "GRIFFAINUSDT", "GRTUSDT", "GRVTUSDT", "GSUSDT", "GTCUSDT", "GTLBUSDT", "GUAUSDT", "GUNUSDT", "GUSDT", "GWEIUSDT", "HAEDALUSDT", "HANAUSDT", "HANMIUSDT", "HBARUSDT", "HDUSDT", "HEIUSDT", "HEMIUSDT", "HIMSUSDT", "HIVEUSDT", "HK0625USDT", "HK0700USDT", "HK0992USDT", "HK1810USDT", "HMSTRUSDT", "HOLOUSDT", "HOMEUSDT", "HOODUSDT", "HOTUSDT", "HPEUSDT", "HUMAUSDT", "HUSDT", "HUTUSDT", "HYPERUSDT", "HYPEUSDT", "HYUNDAIUSDT", "IBKRUSDT", "IBMUSDT", "ICNTUSDT", "ICPUSDT", "IDOLUSDT", "IDUSDT", "ILVUSDT", "IMXUSDT", "INITUSDT", "INJUSDT", "INTCUSDT", "INTWUSDT", "INUSDT", "INXUSDT", "IONQUSDT", "IOSTUSDT", "IOTAUSDT", "IOTXUSDT", "IOUSDT", "IRENUSDT", "IRYSUSDT", "IWMUSDT", "JASMYUSDT", "JCTUSDT", "JELLYJELLYUSDT", "JOEUSDT", "JPMUSDT", "JSTUSDT", "JTOUSDT", "JUPUSDT", "KAIAUSDT", "KAITOUSDT", "KASUSDT", "KATUSDT", "KAVAUSDT", "KERNELUSDT", "KGENUSDT", "KITEUSDT", "KLACUSDT", "KMNOUSDT", "KNCUSDT", "KODEX200USDT", "KOMAUSDT", "KORUUSDT", "KOUSDT", "KSMUSDT", "KSTRUSDT", "KUAISHOUUSDT", "LABUSDT", "LAUSDT", "LAYERUSDT", "LDOUSDT", "LGELECTRONICSUSDT", "LIGHTUSDT", "LINEAUSDT", "LINKUSDT", "LISTAUSDT", "LITEUSDT", "LITUSDT", "LLYUSDT", "LPTUSDT", "LQTYUSDT", "LRCXUSDT", "LSKUSDT", "LTCUSDT", "LUMIAUSDT", "LUNA2USDT", "LYNUSDT", "LYTEUSDT", "MAGICUSDT", "MAGMAUSDT", "MANAUSDT", "MANTAUSDT", "MANTRAUSDT", "MARAUSDT", "MARSCOINUSDT", "MASKUSDT", "MAVIAUSDT", "MAVUSDT", "MCDUSDT", "MDBUSDT", "MDTUSDT", "MEGAUSDT", "MEITUANUSDT", "MELANIAUSDT", "MEMEUSDT", "MERLUSDT", "METAUSDT", "METISUSDT", "METUSDT", "MEUSDT", "MEWUSDT", "MINAUSDT", "MINIMAXUSDT", "MIRAUSDT", "MMTUSDT", "MOCAUSDT", "MONUSDT", "MOODENGUSDT", "MOONSHOTUSDT", "MORPHOUSDT", "MOVEUSDT", "MOVRUSDT", "MPUSDT", "MRKUSDT", "MRNAUSDT", "MRVLUSDT", "MSFTUSDT", "MSTRUSDT", "MSTUUSDT", "MTLUSDT", "MUBARAKUSDT", "MUSDT", "MUUSDT", "MUUUSDT", "MVLLUSDT", "MYXUSDT", "NAORISUSDT", "NAVERUSDT", "NBISUSDT", "NEARUSDT", "NEIROUSDT", "NEOUSDT", "NETUSDT", "NEWTUSDT", "NFLXUSDT", "NIGHTUSDT", "NILUSDT", "NKEUSDT", "NMRUSDT", "NOKUSDT", "NOMUSDT", "NOTUSDT", "NOWUSDT", "NVDAUSDT", "NVDLUSDT", "NVOUSDT", "NXPCUSDT", "OGNUSDT", "OGUSDT", "OKLOUSDT", "ONDOUSDT", "ONDSUSDT", "ONEUSDT", "ONGUSDT", "ONTUSDT", "ONUSDT", "OPENAIUSDT", "OPENUSDT", "OPGUSDT", "OPNUSDT", "OPUSDT", "ORCAUSDT", "ORCLUSDT", "ORDERUSDT", "ORDIUSDT", "OURAUSDT", "OUSDT", "PANWUSDT", "PARTIUSDT", "PATHUSDT", "PAXGUSDT", "PAYPUSDT", "PDDUSDT", "PENDLEUSDT", "PENGUSDT", "PENGUUSDT", "PEOPLEUSDT", "PHAROSUSDT", "PHAUSDT", "PIEVERSEUSDT", "PIPPINUSDT", "PIXELUSDT", "PLAYUSDT", "PLTRUSDT", "PLUMEUSDT", "PNUTUSDT", "POLUSDT", "POLYXUSDT", "PONSUSDT", "POPCATUSDT", "POPMARTUSDT", "PORTALUSDT", "POWERUSDT", "POWRUSDT", "PREDICTUSDT", "PRLUSDT", "PROMUSDT", "PROVEUSDT", "PUMPUSDT", "PUNDIXUSDT", "PYPLUSDT", "PYTHUSDT", "QCOMUSDT", "QNTUSDT", "QNTXUSDT", "QQQUSDT", "QTUMUSDT", "QUSDT", "RAMUSDT", "RAREUSDT", "RAVEUSDT", "RAYSOLUSDT", "RDDTUSDT", "RDWUSDT", "RECALLUSDT", "REDUSDT", "RENDERUSDT", "RESOLVUSDT", "REUSDT", "REZUSDT", "RIFUSDT", "RIVERUSDT", "RIVNUSDT", "RKLBUSDT", "RLCUSDT", "ROBOUSDT", "RONINUSDT", "ROSEUSDT", "RPLUSDT", "RSRUSDT", "RUMUSDT", "RUNEUSDT", "RVNUSDT", "SAFEUSDT", "SAGAUSDT", "SAHARAUSDT", "SAMSUNGEMUSDT", "SAMSUNGUSDT", "SANDUSDT", "SANTOSUSDT", "SAPIENUSDT", "SCRUSDT", "SECZUSDT", "SEIUSDT", "SENTUSDT", "SFPUSDT", "SHAZUSDT", "SHELLUSDT", "SHOPUSDT", "SIGNUSDT", "SIRENUSDT", "SKDDUSDT", "SKHYNIXUSDT", "SKHYUSDT", "SKLUSDT", "SKRUSDT", "SKUUUSDT", "SKYAIUSDT", "SKYUSDT", "SLPUSDT", "SLXUSDT", "SMCIUSDT", "SMHUSDT", "SNDKUSDT", "SNOWUSDT", "SNPSUSDT", "SNXUSDT", "SNXXUSDT", "SOFIUSDT", "SOLUSDT", "SOLVUSDT", "SOMIUSDT", "SONICUSDT", "SONYUSDT", "SOONUSDT", "SOPHUSDT", "SOXLUSDT", "SOXSUSDT", "SPACEUSDT", "SPCXUSDT", "SPELLUSDT", "SPKUSDT", "SPORTFUNUSDT", "SPXUSDT", "SPYUSDT", "SQDUSDT", "SQQQUSDT", "SSVUSDT", "STABLEUSDT", "STARUSDT", "STBLUSDT", "STEEMUSDT", "STMUSDT", "STOUSDT", "STRCUSDT", "STRKUSDT", "STXUSDT", "STXXUSDT", "SUIUSDT", "SUNUSDT", "SUPERUSDT", "SUSDT", "SUSHIUSDT", "SWARMSUSDT", "SXTUSDT", "SYNUSDT", "SYRUPUSDT", "TACUSDT", "TAGUSDT", "TAIKOUSDT", "TAKEUSDT", "TAOUSDT", "TAUSDT", "TBTUSDT", "TEAMUSDT", "TEMUSDT", "TENCENTUSDT", "TERUSDT", "THETAUSDT", "THEUSDT", "TIAUSDT", "TLMUSDT", "TMFUSDT", "TNSRUSDT", "TOSHIUSDT", "TOWNSUSDT", "TQQQUSDT", "TRADOORUSDT", "TRBUSDT", "TREEUSDT", "TRIAUSDT", "TRUMPUSDT", "TRUSTUSDT", "TRUTHUSDT", "TRXUSDT", "TSLAUSDT", "TSLLUSDT", "TSMUSDT", "TSTUSDT", "TTWOUSDT", "TURBOUSDT", "TURTLEUSDT", "TUSDT", "TUTUSDT", "TWSTUSDT", "TWTUSDT", "TXNUSDT", "TZAUSDT", "UAIUSDT", "UBERUSDT", "UBUSDT", "UMAUSDT", "UNHUSDT", "UNITREEUSDT", "UNIUSDT", "URNMUSDT", "USARUSDT", "USDBRLUSDT", "USDCUSDT", "USDEXUSDT", "USELESSUSDT", "USTCUSDT", "USUALUSDT", "USUSDT", "UVXYUSDT", "VANAUSDT", "VELODROMEUSDT", "VELVETUSDT", "VETUSDT", "VIRTUALUSDT", "VKTXUSDT", "VRTUSDT", "VSTUSDT", "VTHOUSDT", "VUSDT", "VVVUSDT", "WALUSDT", "WAXPUSDT", "WCTUSDT", "WDCUSDT", "WENUSDT", "WETUSDT", "WIFUSDT", "WLDUSDT", "WLFIUSDT", "WMTUSDT", "WOOUSDT", "WUSDT", "XAIUSDT", "XANUSDT", "XAUTUSDT", "XBIUSDT", "XLEUSDT", "XLMUSDT", "XMRUSDT", "XNYUSDT", "XOMUSDT", "XPINUSDT", "XPLUSDT", "XRPUSDT", "XTZUSDT", "XVGUSDT", "XVSUSDT", "YBUSDT", "YFIUSDT", "YGGUSDT", "ZAMAUSDT", "ZBTUSDT", "ZCSHUSDT", "ZECUSDT", "ZENUSDT", "ZEREBROUSDT", "ZESTUSDT", "ZETAUSDT", "ZHIPUUSDT", "ZHONGJIUSDT", "ZILUSDT", "ZKCUSDT", "ZKPUSDT", "ZKUSDT", "ZMUSDT", "ZORAUSDT", "ZROUSDT", "ZRXUSDT", "ZSUSDT", "龙虾USDT", "牛来USDT", "哈基米USDT", "我踏马来了USDT", "币安人生USDT"];
+
+
+/* ============ 基础工具 ============ */
+const API="https://fapi.binance.com";
+const ACC_KEY="ob_accounts_v1", LOG_KEY="ob_oplog_v1";
+function loadAcc(){ try{ return JSON.parse(localStorage.getItem(ACC_KEY)||"[]"); }catch(e){ return []; } }
+function saveAcc(a){ localStorage.setItem(ACC_KEY, JSON.stringify(a)); }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function fmtUsd(v){ return isFinite(v)?"$"+Number(v).toLocaleString("en-US",{maximumFractionDigits:6}):"—"; }
+const _rt=new Uint8Array(16);
+function _bytesToHex(b){ let s=""; for(let i=0;i<b.length;i++) s+=("0"+b[i].toString(16)).slice(-2); return s; }
+const _K=[1116352408,1899447441,3049323471,3921009574,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1915078388,2166482820,3203998086,2732408916,4194580999,2273298018,1959290236,2023344822,645713713,4094104258,1272893353,4139463444,1126891411,2887873275,2273961513,3878444813,1839030562,4124245431,1309481646,4235799232,1763290256,1509159560,1028605311,1231456001,1390939755,1112624098,555781218,2385914851,1835215356,1418833926,1859105616,1416259873,1066497531,808182768,1067700121,1794305478,1886516468,1428411237,2322348311,1345470996,871428502,1150626363,1965094481,1409808976,1772157897,1530332063,1314254366,452827953,2056179779,439757063,2272839284,807037137,1921251022,1274624521,3354120932,1648399861,1425494383,1990831929,1384394983,979502131,1388972751,1934736161];
+function _R(x,n){ return (x>>>n)|(x<<(32-n)); }
+function _sha256(data){
+  const l=data.length*8, o=((l>>>5)+1)<<2, pad=new Uint8Array((o+64)>>>2<<2);
+  pad.set(data);
+  const v=new DataView(pad.buffer);
+  v.setUint32(o, l>>>0); v.setUint32(o+4, 0);
+  const H=[1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225], W=new Int32Array(64);
+  for(let i=0;i<pad.length;i+=64){
+    for(let t=0;t<16;t++) W[t]=v.getUint32(i+t*4);
+    for(let t=16;t<64;t++){
+      const s0=_R(W[t-15],7)^_R(W[t-15],18)^(W[t-15]>>>3), s1=_R(W[t-2],17)^_R(W[t-2],19)^(W[t-2]>>>10);
+      W[t]=(W[t-16]+s0+W[t-7]+s1)>>>0;
+    }
+    let a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(let t=0;t<64;t++){
+      const S1=_R(e,6)^_R(e,11)^_R(e,25), ch=(e&f)^(~e&g), t1=(h+S1+ch+_K[t]+W[t])>>>0;
+      const S0=_R(a,2)^_R(a,13)^_R(a,22), maj=(a&b)^(a&c)^(b&c), t2=(S0+maj)>>>0;
+      h=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b;b=a;a=(t1+t2)>>>0;
+    }
+    H[0]=(H[0]+a)>>>0;H[1]=(H[1]+b)>>>0;H[2]=(H[2]+c)>>>0;H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0;H[5]=(H[5]+f)>>>0;H[6]=(H[6]+g)>>>0;H[7]=(H[7]+h)>>>0;
+  }
+  const out=new Uint8Array(32), ov=new DataView(out.buffer);
+  for(let i=0;i<8;i++) ov.setUint32(i*4,H[i]);
+  return out;
+}
+function _hmac(key,data){
+  const BLOCK=64; let k=new Uint8Array(BLOCK);
+  if(key.length>BLOCK) key=_sha256(key);
+  k.set(key);
+  const ipad=new Uint8Array(BLOCK), opad=new Uint8Array(BLOCK);
+  for(let i=0;i<BLOCK;i++){ ipad[i]=k[i]^0x36; opad[i]=k[i]^0x5c; }
+  const inner=new Uint8Array(BLOCK+data.length); inner.set(ipad); inner.set(data,BLOCK);
+  const outer=new Uint8Array(BLOCK+BLOCK); outer.set(opad); outer.set(_sha256(inner),BLOCK);
+  return _sha256(outer);
+}
+async function signQuery(query,secret){
+  const msg=new TextEncoder().encode(query), key=new TextEncoder().encode(secret);
+  if(window.crypto&&crypto.subtle){
+    try{
+      const ko=await crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+      const sig=await crypto.subtle.sign("HMAC",ko,msg);
+      return _bytesToHex(new Uint8Array(sig));
+    }catch(e){}
+  }
+  return _bytesToHex(_hmac(key,msg));
+}
+
+/* ============ 时间同步 ============ */
+let serverRefMs=0, serverRefPerf=0, syncOk=false;
+async function ensureOffset(){
+  if(syncOk && performance.now()-serverRefPerf<60000) return;
+  try{
+    const r=await fetch(API+"/fapi/v1/time");
+    const d=await r.json();
+    const ms=Number(d.serverTime);
+    if(ms>0){ serverRefMs=ms; serverRefPerf=performance.now(); syncOk=true; return; }
+  }catch(e){}
+  syncOk=false;
+}
+async function nowMs(){
+  await ensureOffset();
+  return serverRefMs>0 ? Math.round(serverRefMs+(performance.now()-serverRefPerf)) : Date.now();
+}
+
+/* ============ 签名请求 ============ */
+async function signedFetch(acc, path, method, params){
+  const all=Object.assign({timestamp:await nowMs(), recvWindow:10000}, params||{});
+  const qs=Object.keys(all).sort().map(k=>k+"="+encodeURIComponent(all[k])).join("&");
+  const sig=await signQuery(qs, acc.secret);
+  const opts={headers:{"X-MBX-APIKEY":acc.key}};
+  if(method==="POST") opts.headers["Content-Type"]="application/x-www-form-urlencoded";
+  const r=await fetch(API+path+"?"+qs+"&signature="+sig, Object.assign({method:method||"GET"}, opts));
+  return await r.json();
+}
+function setStatus(t){ document.getElementById("status").textContent=t; }
+
+/* ============ 行情缓存（价格全量 + 最小数量） ============ */
+let PRICE_MAP={}, MINQ_MAP={}, STEP_MAP={}, NOTIONAL_MAP={}, EXINFO_T=0;
+async function loadMarket(){
+  if(Date.now()-EXINFO_T<300000 && Object.keys(PRICE_MAP).length) return;
+  try{
+    const [px, ex]=await Promise.all([
+      fetch(API+"/fapi/v1/ticker/price").then(r=>r.json()),
+      fetch(API+"/fapi/v1/exchangeInfo").then(r=>r.json())
+    ]);
+    const pm={};
+    (px||[]).forEach(p=>{ pm[p.symbol]=parseFloat(p.price); });
+    const mq={}, st={}, nt={};
+    (ex.symbols||[]).forEach(s=>{
+      const f=(s.filters||[]).find(x=>x.filterType==="LOT_SIZE");
+      const n=(s.filters||[]).find(x=>x.filterType==="MIN_NOTIONAL");
+      if(f){ mq[s.symbol]=String(f.minQty); st[s.symbol]=String(f.stepSize); }
+      if(n&&n.notional) nt[s.symbol]=parseFloat(n.notional);
+    });
+    PRICE_MAP=pm; MINQ_MAP=mq; STEP_MAP=st; NOTIONAL_MAP=nt; EXINFO_T=Date.now();
+  }catch(e){}
+}
+
+/* ============ 操作记录 ============ */
+function getLogs(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY)||"[]"); }catch(e){ return []; } }
+function addLog(type, text){
+  const logs=getLogs();
+  logs.unshift({t:Date.now(), type, text});
+  if(logs.length>50) logs.length=50;
+  try{ localStorage.setItem(LOG_KEY, JSON.stringify(logs)); }catch(e){}
+  renderLog();
+}
+function renderLog(){
+  const logs=getLogs().slice(0,10);
+  const el=document.getElementById("opLog");
+  if(!logs.length){ el.innerHTML='<div class="oplog-empty">暂无操作记录</div>'; return; }
+  el.innerHTML=logs.map(l=>{
+    const d=new Date(l.t);
+    const hm=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+":"+("0"+d.getSeconds()).slice(-2);
+    return '<div class="oplog-item '+l.type+'">'+hm+' '+esc(l.text)+'</div>';
+  }).join("");
+}
+
+/* ============ 加载：每账户无仓位的交易对 ============ */
+async function loadAll(){
+  const accs=loadAcc();
+  if(!accs.length){
+    document.getElementById("cards").innerHTML='<tr><td colspan="6" class="empty"><div class="big">尚未添加账户</div>点击「设置账户」填入 API Key。</td></tr>';
+    setStatus("");
+    return;
+  }
+  setStatus("正在加载持仓…");
+  await loadMarket();
+  const results=await Promise.all(accs.map(async acc=>{
+    try{
+      const rows=await signedFetch(acc,"/fapi/v2/positionRisk");
+      if(rows.code===401 || rows.code===-2014) throw new Error("API Key 无效或权限不足（-2014）");
+      if(!Array.isArray(rows)) throw new Error("接口异常："+(rows.msg||JSON.stringify(rows).slice(0,80)));
+      const held={};
+      rows.forEach(p=>{ if(p.positionAmt && parseFloat(p.positionAmt)!==0) held[p.symbol]=true; });
+      return {acc, held, err:null};
+    }catch(e){ return {acc, held:{}, err:e.message}; }
+  }));
+  renderCards(accs, results);
+}
+function renderCards(accs, results){
+  const el=document.getElementById("cards");
+  const rows=[];
+  accs.forEach((a,i)=>{
+    const r=results[i];
+    if(r.err){
+      rows.push('<tr><td><span class="acct-name">'+esc(a.name)+'</span></td><td colspan="5" style="text-align:left;color:#e05c53">✗ 失败：'+esc(r.err)+'</td></tr>');
+      return;
+    }
+    const empty=PAIRS.filter(s=>!r.held[s]);
+    empty.forEach(s=>{
+      const price=PRICE_MAP[s];
+      const mq=MINQ_MAP[s];
+      const minUsd=(price&&mq)?Math.max(price*parseFloat(mq), (NOTIONAL_MAP[s]||5)+1):null;
+      rows.push('<tr><td><span class="acct-name">'+esc(a.name)+'</span></td><td class="sym">'+esc(s)+'</td><td class="side-long">多</td>'+
+        '<td class="num">'+(minUsd?minUsd.toLocaleString("en-US",{maximumFractionDigits:4})+" USDT":"—")+'</td>'+
+        '<td>—</td>'+
+        '<td><button class="op-btn" onclick="openOrder('+a.id+',\''+s+'\')">开多</button></td></tr>');
+    });
+  });
+  el.innerHTML=rows.join('')||'<tr><td colspan="6" class="empty"><div class="big">暂无数据</div>点击「刷新数据」加载持仓。</td></tr>';
+  const errs=results.filter(r=>r.err);
+  const cnts=results.map((r,i)=>esc(accs[i].name)+(r.err?(" ✗ "+esc(r.err)):(" ✓ "+PAIRS.filter(s=>!r.held[s]).length+" 个无仓位"))).join("  ·  ");
+  setStatus((errs.length?(errs.length+" 个账户失败；"):"")+cnts);
+}
+
+/* ============ 下单：最小开仓数量 ============ */
+let PENDING=null;
+async function openOrder(accId, sym){
+  const acc=loadAcc().find(x=>x.id===accId);
+  if(!acc) return;
+  const mq=MINQ_MAP[sym];
+  const price=PRICE_MAP[sym];
+  if(!mq||!isFinite(price)){ alert("未获取到该交易对信息，请刷新数据后重试"); return; }
+  const usd=Math.max(price*parseFloat(mq), (NOTIONAL_MAP[sym]||5)+1);
+  PENDING={acc,sym,usd,price};
+  document.getElementById("ordBody").innerHTML=
+    '<div>账户：<b>'+esc(acc.name)+'</b></div>'+
+    '<div>交易对：<b>'+esc(sym)+'</b></div>'+
+    '<div>操作：<b>开仓（多单 BUY）</b>，金额 <b>'+usd.toLocaleString("en-US",{maximumFractionDigits:4})+' USDT</b></div>'+
+    '<div>约数量：约 <b>'+usd.toLocaleString("en-US",{maximumFractionDigits:6})+'/'+price.toLocaleString("en-US",{maximumFractionDigits:6})+' = '+ (usd/price).toLocaleString("en-US",{maximumFractionDigits:4})+'</b> 个（按最新价折算）</div>'+
+    '<div>类型：市价单，按 USDT 金额执行</div>'+
+    '<div class="ord-warn">请确认账户余额充足。市价单可能产生滑点，成交后自动刷新。</div>';
+  document.getElementById("ordMask").classList.add("open");
+}
+function closeOrder(){ document.getElementById("ordMask").classList.remove("open"); }
+async function placeOrder(){
+  const t=PENDING;
+  if(!t) return;
+  closeOrder();
+  PENDING=null;
+  try{
+    const dualJ=await signedFetch(t.acc,"/fapi/v1/positionSide/dual");
+    const dual=!!dualJ.dualSidePosition;
+    // 按数量下单（与 us-position-web 开仓逻辑一致）：部分交易对不接受 quoteOrderQty 金额市价单
+    const step=parseFloat(STEP_MAP[t.sym]||"1");
+    const minQ=parseFloat(MINQ_MAP[t.sym]||"1");
+    const minN=NOTIONAL_MAP[t.sym]||5;
+    let qty=Math.floor((t.usd/t.price)/step)*step;         // 向下取整到最小步长
+    qty=Math.round(qty*1e8)/1e8;                           // 固定 8 位精度舍入
+    if(qty*t.price<minN){                                  // 金额不足最小名义值时向上补齐
+      qty=Math.ceil((minN/t.price)/step)*step;
+      qty=Math.round(qty*1e8)/1e8;
+    }
+    if(qty<minQ) qty=minQ;
+    const qtyStr=String(qty);
+    const params={symbol:t.sym, side:"BUY", type:"MARKET", quantity:qtyStr, newOrderRespType:"ACK"};
+    if(dual) params.positionSide="LONG";
+    const j=await signedFetch(t.acc,"/fapi/v1/order","POST",params);
+    if(j.orderId){
+      addLog("ok", t.acc.name+" "+t.sym+" 开仓多单 "+qtyStr+" 个 ≈ "+t.usd.toLocaleString("en-US",{maximumFractionDigits:4})+" USDT（订单 "+j.orderId+"）");
+      setStatus(t.acc.name+" "+t.sym+" 开仓成功（订单 "+j.orderId+"）");
+      loadAll();
+    }else{
+      addLog("err", t.acc.name+" "+t.sym+" 开仓失败："+(j.msg||JSON.stringify(j).slice(0,120)));
+      alert("开仓失败："+(j.msg||JSON.stringify(j).slice(0,120)));
+    }
+  }catch(e){
+    addLog("err", t.acc.name+" "+t.sym+" 开仓失败："+e.message);
+    alert("开仓失败："+e.message);
+  }
+}
+
+/* ============ 设置账户 ============ */
+function rowHtml(nm,key,secret){
+  return '<div class="arow">'+
+    '<input class="nm" value="'+esc(nm)+'" placeholder="账户名">'+
+    '<input class="ak" value="'+esc(key)+'" placeholder="API Key" autocomplete="off">'+
+    '<input class="as" value="'+esc(secret)+'" placeholder="API Secret" autocomplete="off" type="password">'+
+    '<button class="del" onclick="this.parentNode.remove()" title="删除该账户">×</button></div>';
+}
+function openSet(){
+  const accs=loadAcc();
+  document.getElementById("accRows").innerHTML = accs.length
+    ? accs.map(a=>rowHtml(a.name,a.key,a.secret)).join("")
+    : rowHtml("账户1","","");
+  document.getElementById("mask").classList.add("open");
+}
+function closeSet(){ document.getElementById("mask").classList.remove("open"); }
+function addRow(){
+  const n=document.getElementById("accRows").children.length;
+  document.getElementById("accRows").insertAdjacentHTML("beforeend", rowHtml("账户"+(n+1),"",""));
+}
+function saveSet(){
+  const accs=[];
+  document.querySelectorAll("#accRows .arow").forEach(row=>{
+    const key=row.querySelector(".ak").value.trim();
+    const secret=row.querySelector(".as").value.trim();
+    if(!key&&!secret) return;
+    const nm=(row.querySelector(".nm").value||"").trim()||("账户"+(accs.length+1));
+    accs.push({id:Date.now()+accs.length, name:nm, key, secret});
+  });
+  if(!accs.length){ alert("请至少填写一行 API Key + Secret"); return; }
+  saveAcc(accs);
+  closeSet();
+  loadAll();
+}
+
+loadAll();
+renderLog();
+</script>
+</body>
+</html>
